@@ -45,7 +45,7 @@ public class MyBeanDefinitionReader {
 
     private void doScanner(String scanPackage) {
         //将配置文件中scanpackage转换为文件路径，实际上就是把.替换成/
-        URL url = this.getClass().getClassLoader().getResource("/" + scanPackage.replace("\\.","/"));
+        URL url = this.getClass().getResource("/" + scanPackage.replaceAll("\\.","/"));
         File classPath = new File(url.getFile());
         for (File file : classPath.listFiles()) {
             if(file.isDirectory()){
@@ -60,35 +60,40 @@ public class MyBeanDefinitionReader {
         }
     }
 
-    //把配置文件中定义的扫描到的每一个配置信息（？不是扫描出来的class吗？）解析成一个个MyBeanDefinition对象，为了之后IOC操作方便
     public List<MyBeanDefinition> loadBeanDefinitions(){
         List<MyBeanDefinition> result = new ArrayList<MyBeanDefinition>();
-        for (String className: registryBeanClasses) {
-            MyBeanDefinition beanDefinition = doCreateBeanDefinition(className);
-            if(null == beanDefinition) {
-                continue;
-            }
-            result.add(beanDefinition);
-        }
-        return null;
-    }
-
-    private MyBeanDefinition doCreateBeanDefinition(String className){
         try {
-            Class<?> beanClass = Class.forName(className);
-            //有可能是一个接口（接口是不能被初始化的，所以需要用它的实现类作为beanClassName）
-            if(beanClass.isInterface()){
-                return null;
+            for (String className: registryBeanClasses) {
+                Class<?> beanClass = Class.forName(className);
+                //如果是一个接口，是不能实例化的，需要用它的实现类来实例化
+                if(beanClass.isInterface()) {continue;}
+
+                //beanName有三种情况：1默认是类名首字母小写，2自定义名字，3接口注入（？？？）
+                //java Class.getSimpleName() 得到类的简写名称（不包含包路径），比如对本类而言，获取的就是“MyBeanDefinitionReader”；Class.getName()得到类名称（包含路径）
+                //保存以下两种BeanDefinition，为了以后既可以根据？？？getBean，也可以根据类名getBean
+                MyBeanDefinition beanDefinition = doCreateBeanDefinition(toLowerFirstCase(beanClass.getSimpleName()), beanClass.getName());
+                result.add(beanDefinition);
+                result.add(doCreateBeanDefinition(beanClass.getName(), beanClass.getName()));
+
+                Class<?> [] interfaces = beanClass.getInterfaces();
+                for (Class<?> i: interfaces) {
+                    //如果是多个实现类，只能覆盖。Spring源码也是这样。
+                    //这个时候可以自定义名字
+                    result.add(doCreateBeanDefinition(i.getName(),beanClass.getName()));
+                }
             }
-            MyBeanDefinition beanDefinition = new MyBeanDefinition();
-            beanDefinition.setBeanClassName(className);
-            //java Class.getSimpleName() 得到类的简写名称，比如对本类而言，获取的就是“MyBeanDefinitionReader”
-            beanDefinition.setFactoryBeanName(beanClass.getSimpleName());
-            return beanDefinition;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return result;
+    }
+
+    //把配置文件中定义的扫描到的每一个配置信息（？不是扫描出来的class吗？）解析成一个个MyBeanDefinition对象，为了之后IOC操作方便
+    private MyBeanDefinition doCreateBeanDefinition(String factoryBeanName, String beanClassName){
+        MyBeanDefinition beanDefinition = new MyBeanDefinition();
+        beanDefinition.setBeanClassName(beanClassName);
+        beanDefinition.setFactoryBeanName(factoryBeanName);
+        return beanDefinition;
     }
 
     //这里默认了传入参数是字母，且首字母是大写

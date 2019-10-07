@@ -2,13 +2,20 @@ package com.spring.framework.beans;
 
 public class MyBeanWrapper {
 
-    //如果是单例，直接获取
-    Object getWrappedInstance() {
-        return null;
+    private Object wrappedInstance;
+    private Class<?> wrappedClass;
+
+    public MyBeanWrapper(Object wrappedInstance) {
+        this.wrappedInstance = wrappedInstance;
     }
 
-    //如果不是单例，可以每次new出来
-    Class<?> getWrappedClass() {
-        return null;
+    //如果是单例，直接获取
+    public Object getWrappedInstance() {
+        return this.wrappedInstance;
+    }
+
+    //如果不是单例，可以每次new出来。返回代理以后的Class。
+    public Class<?> getWrappedClass() {
+        return this.wrappedInstance.getClass();
     }
 }

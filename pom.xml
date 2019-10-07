@@ -8,19 +8,31 @@
     <artifactId>spring-2.0</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <properties>
+        <servlet.api.version>RELEASE</servlet.api.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
-            <version>RELEASE</version>
-            <!--教程中如下为什么不报错-->
-            <!--<version>${servlet.api.version}</version>-->
-            <!--<scope>provided</scope>-->
+            <version>${servlet.api.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.16.22</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.25</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
         </dependency>
     </dependencies>
 </project>
