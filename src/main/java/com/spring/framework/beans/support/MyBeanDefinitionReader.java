@@ -70,10 +70,10 @@ public class MyBeanDefinitionReader {
 
                 //beanName有三种情况：1默认是类名首字母小写，2自定义名字，3接口注入（？？？）
                 //java Class.getSimpleName() 得到类的简写名称（不包含包路径），比如对本类而言，获取的就是“MyBeanDefinitionReader”；Class.getName()得到类名称（包含路径）
-                //保存以下两种BeanDefinition，为了以后既可以根据？？？getBean，也可以根据类名getBean
                 MyBeanDefinition beanDefinition = doCreateBeanDefinition(toLowerFirstCase(beanClass.getSimpleName()), beanClass.getName());
                 result.add(beanDefinition);
-                result.add(doCreateBeanDefinition(beanClass.getName(), beanClass.getName()));
+//                //又保存一种BeanDefinition，为了以后既可以根据？？？getBean，也可以根据类名getBean。但是这种写法会导致初始化两次，应该在MyDispatchServlet的initHandlerMapping中做一次去重。
+//                result.add(doCreateBeanDefinition(beanClass.getName(), beanClass.getName()));
 
                 Class<?> [] interfaces = beanClass.getInterfaces();
                 for (Class<?> i: interfaces) {

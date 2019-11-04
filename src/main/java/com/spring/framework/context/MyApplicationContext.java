@@ -12,6 +12,7 @@ import com.spring.framework.beans.support.MyDefaultListableBeanFactory;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -146,5 +147,18 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
 
         //4、把BeanWrapper存放到IOC容器中
         return beanWrapper;
+    }
+
+    public String[] getBeanDefinitionNames() {
+        return this.beanDefinitionMap.keySet().toArray(new String[this.beanDefinitionMap.size()]);
+    }
+
+    public int getBeanDefinitionCount() {
+        return this.beanDefinitionMap.size();
+    }
+
+    //获取配置文件
+    public Properties getConfig() {
+        return this.reader.getConfig();
     }
 }
