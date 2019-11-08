@@ -38,7 +38,7 @@ public class MyAction {
             return out(response, result);
         } catch (Exception e) {
             Map<String, Object> model = new HashMap<>();
-            model.put("detail", e.getMessage());
+            model.put("detail", e.getCause().getMessage());
             model.put("stackTrace", Arrays.toString(e.getStackTrace()));
             return new MyModelAndView("500", model);
         }

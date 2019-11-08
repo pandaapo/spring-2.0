@@ -3,9 +3,15 @@ package com.spring.framework.context;
 import com.spring.framework.annotation.MyAutowired;
 import com.spring.framework.annotation.MyController;
 import com.spring.framework.annotation.MyService;
+import com.spring.framework.aop.MyAopProxy;
+import com.spring.framework.aop.MyCglibAopProxy;
+import com.spring.framework.aop.MyJdkDynamicAopProxy;
+import com.spring.framework.aop.config.MyAopConfig;
+import com.spring.framework.aop.support.MyAdvisedSupport;
 import com.spring.framework.beans.MyBeanFactory;
 import com.spring.framework.beans.MyBeanWrapper;
 import com.spring.framework.beans.config.MyBeanDefinition;
+import com.spring.framework.beans.config.MyBeanPostProcessor;
 import com.spring.framework.beans.support.MyBeanDefinitionReader;
 import com.spring.framework.beans.support.MyDefaultListableBeanFactory;
 
@@ -67,9 +73,11 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
     }
 
     /**
-     * 是依赖注入的一个入口
-     * @param beanName
-     * @return
+     * 是依赖注入的一个入口。即依赖注入从这里开始，通过读取BeanDefinition中的信息然后通过反射机制创建一个实例并返回
+     * Spring的做法：不会把最原始的对象放出去，会用一个BeanWrapper来进行一次包装
+     * 装饰器模式：
+     * 1、保留原来的OOP关系
+     * 2、需要对它进行扩展，增强（为了以后AOP打基础）
      */
     @Override
     public Object getBean(String beanName) throws Exception {
@@ -78,11 +86,20 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
         //class B {A a;}
 
         //1、初始化
-        MyBeanDefinition beanDefinition = super.beanDefinitionMap.get(beanName);
-        MyBeanWrapper beanWrapper = instantiateBean(beanName, beanDefinition);
+        MyBeanDefinition beanDefinition = this.beanDefinitionMap.get(beanName);
+        Object intance = null;
+        MyBeanPostProcessor postProcessor = new MyBeanPostProcessor();
+        postProcessor.postProcessBeforeInitialization(intance,beanName);
+        intance = instantiateBean(beanName, beanDefinition);
+
+        //把这个对象封装到BeanWrapper中
+        MyBeanWrapper beanWrapper = new MyBeanWrapper(intance);
 
         //2、将创建出来的BeanWrapper存放到通用IOC容器中
+        //源码中，BeanWrapper存放在AbstractAutowireCapableBeanFactory的factoryBeanInstanceCache中
         this.factoryBeanInstanceCache.put(beanName, beanWrapper);
+
+        postProcessor.postProcessAfterInitialization(intance,beanName);
 
         //3、注入
         populateBean(beanName, new MyBeanDefinition(), beanWrapper);
@@ -122,7 +139,7 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
 
     }
 
-    private MyBeanWrapper instantiateBean(String beanName, MyBeanDefinition myBeanDefinition) {
+    private Object instantiateBean(String beanName, MyBeanDefinition myBeanDefinition) {
         //1、拿到要实例化的对象的类名
         String className = myBeanDefinition.getBeanClassName();
         //2、反射实例化，得到一个对象
@@ -133,20 +150,45 @@ public class MyApplicationContext extends MyDefaultListableBeanFactory implement
             } else {
                 Class<?> clazz = Class.forName(className);
                 intance = clazz.newInstance();
+                
+                /**AOP：判断是否需要创建代理对象，是则创建**/
+                MyAdvisedSupport config = instantionAopConfig(myBeanDefinition);
+                config.setTargetClass(clazz);
+                config.setTarget(intance);
+                //符合PointCut规则的，则创建代理对象
+                if(config.pointCutMatch()) {
+                    intance = createProxy(config).getProxy();
+                }
+
                 //保存了两种：这样可以根据className注入，也可以根据beanName注入
+                //？？？好像并没有判断什么样的是单例对象？？？
+                //源码中，单例对象存放在DefaultSingletonBeanRegistry的singletonObjects（不确定是否是这个）
                 this.singletonObjects.put(className, intance);
                 this.singletonObjects.put(myBeanDefinition.getFactoryBeanName(), intance);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        //3、把这个对象封装到BeanWrapper中
-        //源码中，单例对象存放在DefaultSingletonBeanRegistry的singletonObjects（不确定是否是这个）
-        //源码中，BeanWrapper存放在AbstractAutowireCapableBeanFactory的factoryBeanInstanceCache中
-        MyBeanWrapper beanWrapper = new MyBeanWrapper(intance);
+        return intance;
+    }
 
-        //4、把BeanWrapper存放到IOC容器中
-        return beanWrapper;
+    private MyAopProxy createProxy(MyAdvisedSupport config) {
+        Class targetClass = config.getTargetClass();
+        if(targetClass.getInterfaces().length > 0){
+            return new MyJdkDynamicAopProxy(config);
+        }
+        return new MyCglibAopProxy(config);
+    }
+
+    private MyAdvisedSupport instantionAopConfig(MyBeanDefinition myBeanDefinition) {
+        MyAopConfig config = new MyAopConfig();
+        config.setPointCut(this.reader.getConfig().getProperty("pointCut"));
+        config.setAspectClass(this.reader.getConfig().getProperty("aspectClass"));
+        config.setAspectBefore(this.reader.getConfig().getProperty("aspectBefore"));
+        config.setAspectAfter(this.reader.getConfig().getProperty("aspectAfter"));
+        config.setAspectAfterThrow(this.reader.getConfig().getProperty("aspectAfterThrow"));
+        config.setAspectAfterThrowingName(this.reader.getConfig().getProperty("aspectAfterThrowingName"));
+        return new MyAdvisedSupport(config);
     }
 
     public String[] getBeanDefinitionNames() {
